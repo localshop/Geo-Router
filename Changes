@@ -1,0 +1,8 @@
+Revision history for Perl extension Geo::Router::OSRM.
+
+0.01  Sat Dec 27 15:19:35 2014
+	- original version; created by h2xs 1.23 with options
+		-b5.10.0 -AX --skip-exporter --use-new-tests -n Geo::Router::OSRM
+
+0.04  Mon May 2 2016
+  - refactored for release on GitHub

@@ -22,6 +22,9 @@ Can use either public OSM Service or other service.
 
 More details about what the API service provides can do can be found at L<API website|https://github.com/Project-OSRM/osrm-backend/wiki/Server-api>
 
+NB: This is not an official part of the OSM project and is provided by Peter in the hope that it will be useful to someone. It is fragile and
+ugly and should not be depended on without significant testing for your use case.
+
 =head1 VERSION
 
 Version 0.04
@@ -34,9 +37,12 @@ Version 0.04
 
     use Geo::Router::OSRM;
 
-    Geo::Router::OSRM->new( );
+    my $osrm = Geo::Router::OSRM->new( );
 
-    Geo::Router::OSRM->new( { url_base => 'http://otherdomain.com:5000', source=> 'custom' }  );
+    ## or 
+
+    my $osrm = Geo::Router::OSRM->new( { url_base => 'http://otherdomain.com:5000', source=> 'custom' }  );
+
 
     my $waypoints = [  [-27.919012,153.386215],[-27.936121,153.360809], [-28.033663, 153.434582]   ];
 
@@ -112,8 +118,9 @@ sub new
 
     {
         ua => LWP::UserAgent->new(),
-        source   => $ahr->{source} || '',
+        source   => $ahr->{source}   || '',
         url_base => $ahr->{url_base} || '',
+        api_version => $ahr->{api_version} || 4,
         error    => '',
         DEBUG    => '',
         json_result => '',
@@ -157,7 +164,14 @@ sub new
 sub locate
 {
     my ( $self, $lat, $lng ) = @_;
-    $self->{json_result} = $self->_request( qq{$self->{url_base}/locate?loc=$lat,$lng} );
+    if ( $self->{api_version} eq '4')
+    {
+      $self->{json_result} = $self->_request( qq{$self->{url_base}/locate?loc=$lat,$lng} );
+      } 
+      else 
+      {
+        die("API V5 Not yet implemented");
+      }
     return $self->{json_result};
     die("Not yet implemetned");
 }

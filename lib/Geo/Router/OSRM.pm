@@ -42,7 +42,7 @@ Version 0.04
 
     if ( my $route = $osrm->viaroute( $waypoints )  )
     {
-      print $route->geometry_encoded();   ## see OSRM::Route for docs
+      print $route->geometry_encoded();   ## see Geo::Router::OSRM::Route for docs
     }
 
 

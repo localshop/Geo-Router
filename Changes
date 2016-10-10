@@ -6,3 +6,7 @@ Revision history for Perl extension Geo::Router::OSRM.
 
 0.04  Mon May 2 2016
   - refactored for release on GitHub
+
+0.05  Mon Oct 10 2016
+  - refactoring to allow compatability with both legacy V4 OSRM PI and newer V5
+  - See https://github.com/Project-OSRM/osrm-backend/wiki/Server-API---v4,-old

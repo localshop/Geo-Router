@@ -9,7 +9,7 @@ use Data::Dumper;
 use Geo::Router::OSRM::Route;
 use Geo::Google::PolylineEncoder;  ## NB - consider removing this functionality
 
-use version; our $VERSION = version->declare("v0.04");
+use version; our $VERSION = version->declare("0.10");
 #our $VERSION = '0.02';
 #$VERSION = eval $VERSION;
 
@@ -84,7 +84,10 @@ Write a mail to info@project-osrm.org to let us know that you are using our serv
 
 =cut
 
+=head2 CHANGES
 
+Dec,2016 - Refactored new to accept hash instead of hashref 
+         - refactoring to work with v1 OSRM 5.x installations
 
 
 #####################################
@@ -95,9 +98,9 @@ Write a mail to info@project-osrm.org to let us know that you are using our serv
 
     my $osrm = Geo::Router::OSRM->new(); ## defaults to osrm server
     or
-    my $osrm = Geo::Router::OSRM->new( { url_base => 'http://otherdomain.com:5000', source=> 'custom' }  );
+    my $osrm = Geo::Router::OSRM->new(  url_base => 'http://otherdomain.com:5000', source=> 'custom'   );
     or
-    my $osrm = Geo::Router::OSRM->new( { source=>'localhost'  });  ## Create an OSRM Query Agent
+    my $osrm = Geo::Router::OSRM->new(  source=>'localhost'  );  ## Create an OSRM Query Agent
 
 
 =head3 source
@@ -111,21 +114,21 @@ sub new
 {
 
     my $class = shift;
-    my (  $ahr ) = @_;
+    my (  %ahr ) = @_;
     #return undef unless defined $ahr->{user_id};
 
     my $self = bless
 
     {
         ua => LWP::UserAgent->new(),
-        source   => $ahr->{source}   || '',
-        url_base => $ahr->{url_base} || '',
-        api_version => $ahr->{api_version} || 4,
+        source   => $ahr{source}   || '',
+        url_base => $ahr{url_base} || '',
+        api_version => $ahr{api_version} || 4,
         error    => '',
         DEBUG    => '',
         json_result => '',
         via_params => {
-            instructions => $ahr->{instructions} || 'true', # true || false
+            instructions => $ahr{instructions} || 'true', # true || false
             alt          => 'false', ## if set to true then viaroute queries include alternative routes
         },
         routes => [],
@@ -140,10 +143,10 @@ sub new
     }, $class;
 
 
-    if ( (defined $ahr->{url_base} and $ahr->{url_base} =~ /^http/m) and  ( $self->{source} eq 'custom' || not defined $SOURCES{ $self->{source} } ) )
+    if ( (defined $ahr{url_base} and $ahr{url_base} =~ /^http/m) and  ( $self->{source} eq 'custom' || not defined $SOURCES{ $self->{source} } ) )
     {
       $self->{source} = 'custom';
-      $self->{url_base} = $ahr->{url_base};
+      $self->{url_base} = $ahr{url_base};
 
     }
 
@@ -228,11 +231,11 @@ sub viaroute
     $self->{source} = 'osrm' unless $self->{source};
     $self->{url_base} = $SOURCES{ $self->{source} } unless $self->{url_base};
     ## validate input
-    return $self->error("Error: via route  requires an array of waypoints") unless ( ref $wp_array eq 'ARRAY');
+    return $self->_error("Error: via route  requires an array of waypoints") unless ( ref $wp_array eq 'ARRAY');
     my $wpoints = '';
     foreach my $p  ( @$wp_array )
     {
-        return $self->error("Error: Waypoints must contain array of [lat,lng] points") unless ( ref $p eq 'ARRAY' && @$p==2);
+        return $self->_error("Error: Waypoints must contain array of [lat,lng] points") unless ( ref $p eq 'ARRAY' && @$p==2);
         $wpoints .=  ($wpoints eq '') ? '?' : '&';
         $wpoints .= qq{loc=$p->[0],$p->[1]};
     }
@@ -244,13 +247,13 @@ sub viaroute
     $self->{json_result} = $self->_request( qq{$self->{url_base}/viaroute$wpoints&instructions=$self->{via_params}{instructions}&alt=$self->{via_params}{alt}} );
 
     #/table?loc=29.94,-90.11&loc=30.44,-91.18&loc=30.45,-91.22&loc=30.42,-91.15
-    #return $self->error('')
+    #return $self->_error('')
     #print Dumper $json_result;
     #exit;
     ## process result - create route object/s and populate
     return $self->process_via_json( $self->{json_result})         if ( defined $self->{json_result}{status} && $self->{json_result}{status} == 0 );
-    return $self->error($self->{json_result}{status_message}) if ( defined $self->{json_result}{status_message}  );
-    return $self->error("Error: Unable to process $!");
+    return $self->_error($self->{json_result}{status_message}) if ( defined $self->{json_result}{status_message}  );
+    return $self->_error("Error: Unable to process $!");
 }
 
 sub process_via_json
@@ -294,11 +297,11 @@ sub table
   $self->{source} = 'osrm' unless $self->{source};
   $self->{url_base} = $SOURCES{ $self->{source} } unless $self->{url_base};
   ## validate input
-  return $self->error("Error: via route  requires an array of waypoints") unless ( ref $wp_array eq 'ARRAY');
+  return $self->_error("Error: via route  requires an array of waypoints") unless ( ref $wp_array eq 'ARRAY');
   my $wpoints = '';
   foreach my $p  ( @$wp_array )
   {
-    return $self->error("Error: Waypoints must contain array of [lat,lng] points") unless ( ref $p eq 'ARRAY' && @$p==2);
+    return $self->_error("Error: Waypoints must contain array of [lat,lng] points") unless ( ref $p eq 'ARRAY' && @$p==2);
     $wpoints .=  ($wpoints eq '') ? '?' : '&';
     $wpoints .= qq{loc=$p->[0],$p->[1]};
   }
@@ -311,13 +314,13 @@ sub table
 #$self->{json_result} = $self->_request( qq{$self->{url_base}/table?loc=29.94,-90.11&loc=30.44,-91.18&loc=30.45,-91.22&loc=30.42,-91.15&z=12});
   return $self->{json_result};
 #/table?loc=29.94,-90.11&loc=30.44,-91.18&loc=30.45,-91.22&loc=30.42,-91.15
-#return $self->error('')
+#return $self->_error('')
 #print Dumper $self->{json_result};
 #exit;
 ## process result - create route object/s and populate
 #return $self->process_json( $self->{json_result})         if ( defined $self->{json_result}{status} && $self->{json_result}{status} == 0 );
-#return $self->error($self->{json_result}{status_message}) if ( defined $self->{json_result}{status_message}  );
-#return $self->error("Error: Unable to process $!");
+#return $self->_error($self->{json_result}{status_message}) if ( defined $self->{json_result}{status_message}  );
+#return $self->_error("Error: Unable to process $!");
 }
 
 ##############
@@ -361,7 +364,7 @@ sub _request {
     return unless $uri;
 
     my $res = $self->{response} = $self->{ua}->get($uri);
-    return $self->error('Invalid http response') unless $res->is_success;
+    return $self->_error('Invalid http response') unless $res->is_success;
 
     # Change the content type of the response (if necessary) so
     # HTTP::Message will decode the character encoding.
@@ -381,13 +384,42 @@ sub _request {
 }
 
 
-sub error
+sub _error
 {
     my ( $self, $msg) = @_;
     return $self->{error} if ( not defined $msg );
     $self->{error} .= "$msg";
     warn($msg) if $self->{DEBUG};
     return undef;
+}
+
+
+=head2 get()
+
+  queries the OSRM service (OSRM 5.x installations with endpoint as defined in self ) using the following named parameters:
+
+service: route|nearest|table|match|trip|tile
+version: (always 1) - not required  
+profile: one of- bike, car, foot as per server profile
+coordinates: one of - string of google encoded polyline coordinates  with precision 5 , 
+                      string of format {longitude},{latitude};{longitude},{latitude}
+                      or an array of arrays of coordinate values (which can be either an array of lng,lat numbers 
+                            or possible in the future a form of Geo::Location object).
+
+
+  called in a scalar context returns the raw json string
+  called in a array context returns result as a perl hash structure
+
+  e.g.
+  my $version = $osrm->get( service => 'route', version => 1, profile => 'car', coordinates=> [ [$lng1,$lat1], [128,-27, 129,-28] ] );
+  my $
+
+=cut 
+
+sub get
+{
+  my ( $self, %params ) = @_;
+  return $self->_err('service param must be one of: ', join(@services,',') ) unless $params{'service'} =~ m/route|nearest|table|match|trip|tile/img;
 }
 
 1;

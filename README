@@ -21,11 +21,17 @@ To install this module type the following:
    make test
    make install
 
+TESTING AGAINST A LIVE SERVICE
+  when running make test if the OSRM_URL_BASE environment variable is set
+  then tests will be performed against this ( currently with hard-coded australian locations )
+    eg. 
+      export OSRM_URL_BASE=http://localhost:5000
+
 DEPENDENCIES
 
 This module requires these other modules and libraries:
 
-  blah blah blah
+  IO::Socket::PortState
 
 COPYRIGHT AND LICENCE
 

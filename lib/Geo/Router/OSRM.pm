@@ -8,6 +8,7 @@ use JSON;
 use Data::Dumper;
 use Geo::Router::OSRM::Route;
 use Geo::Google::PolylineEncoder;  ## NB - consider removing this functionality
+use Scalar::Util qw(looks_like_number);
 
 use version; our $VERSION = version->declare("0.20");
 
@@ -381,10 +382,10 @@ sub _request {
    #     unless $res->content_type =~ /^text/;
 
     my $content = $res->decoded_content;
-    print "$content";
+    
     return unless $content;
 
-    my $data = eval { from_json($content) };
+    my $data = eval { from_json($content) }; ## security warning - evals are bad - are you sure about content?
     return unless $data;
 
     return $data;
@@ -435,6 +436,14 @@ sub get
 }
 
 
+
+## checks if a value is numeric 
+#sub _numeric { my ($self,$obj) = @_; no warnings "numeric"; return length($obj & ""); } 
+# gave up on this approach as caused some issues - consider looking at 
+#    use Scalar::Util qw(looks_like_number);
+#    as per https://perlmaven.com/automatic-value-conversion-or-casting-in-perl
+#print numeric("w") . "\n"; #=>0, print numeric("x") . "\n"; #=>0, print numeric("1") . "\n"; #=>0, print numeric(3) . "\n"; #=>1, print numeric("w") . "\n"; #=>1
+# as per http://stackoverflow.com/questions/12647/how-do-i-tell-if-a-variable-has-a-numeric-value-in-perl
 =pod _get_route()
 
 GET /route/v1/{profile}/{coordinates}?alternatives={true|false}&steps={true|false}&geometries={polyline|polyline6|geojson}&overview={full|simplified|false}&annotations={true|false}
@@ -450,20 +459,28 @@ sub _get_route
   my ( $self, %params ) = @_;
   #print Dumper \%params;
   return $self->_error('unable to get route without list of waypoints') unless ref( $params{coordinates} ) eq 'ARRAY';
+  ## if trying to route to self, duplicate the waypoint and warn so that doesn't break
+  
+  if (@{$params{coordinates}}==1)
+  {
+    $self->_error("Getting a route with a single point is a little pointless don't you think?");
+    $params{coordinates} = [ $params{coordinates}[0],$params{coordinates}[0] ] ;
+  }
   $params{annotations} = 'false' unless $params{annotations};
   $params{steps}       = 'true' unless $params{step};
 
   my $wp_strings = [];
   foreach my $point ( @{$params{coordinates}} )
   {
+    return $self->_error('Waypoint not an array containing long and lat numeric values') unless ( looks_like_number($point->[0]) );
     push @$wp_strings, "$point->[0],$point->[1]";
    # print "$point->[0],$point->[1]\n";
   }
   my $uri =  qq{$self->{url_base}/route/v1/driving/} . join( ';', @$wp_strings) . "?annotations=$params{annotations}&steps=$params{steps}";
-  print "$uri\n\n";
+  #print "$uri\n\n";
   #print  qq{$self->{url_base}/route/v1/driving/} . join( ';',@$wp_strings) . "\n";
-  return $self->{json_result} = $self->_request( $uri );
-  return $self->{json_result};
+  $self->{json_result} = $self->_request( $uri );
+  return $self->process_via_json_v5( $self->{json_result} );
 }
 
 
@@ -474,19 +491,25 @@ sub process_via_json_v5
 
     $json = $self->{json_result} unless $json;
 
-die('wtffff' . $json->{code} ) unless ( defined $json and $json->{code} eq 'Ok');
-
     return $self->_error('Unable to create route object from invalid JSON') unless ( defined $json and $json->{code} eq 'Ok');
 
     ## parse first route object in list of routes as described in https://github.com/Project-OSRM/osrm-backend/blob/master/docs/http.md#result-objects
 
     ## 
+    my $start_point = $json->{routes}[0]{via_points}[0]{location};
+    my $end_point   = $json->{routes}[0]{via_points}[ -1 ]{location}; ## NB -1 index refers to last element
 
+    my $route_summary = {
+      start_point => $start_point,
+      end_point   => $end_point,
+      total_distance =>  $json->{routes}[0]{distance},
+      total_duration => $json->{routes}[0]{duration}
+    };
     $self->{routes}[0] = Geo::Router::OSRM::Route->new({
        # 'start_desc' => $self->{json_result}
        # 'finish_desc' =>  $self->{json_result}
 
-        'route_summary'            => $json->{routes}[0]{route_summary},
+        'route_summary'            => $route_summary, #$json->{routes}[0]{route_summary},
         'route_geometry'           => $json->{routes}[0]{geometry},
         #'route_instructions'       => $self->{json_result}{route_instructions},
         'total_distance'           => $json->{routes}[0]{distance},

@@ -21,7 +21,17 @@ To install this module type the following:
     perl Makefile.PL
     make
     make test
+      or
+    make test TEST_VERBOSE=true
     make install
+
+TESTING AGAINST A LIVE SERVICE
+------------------------------
+
+When running make test if the ````OSRM_URL_BASE```` environment variable is set then tests will be performed against this endpoint ( currently with hard-coded australian locations )
+eg. 
+
+     export OSRM_URL_BASE=http://localhost:5000
 
 
 DEPENDENCIES
@@ -32,6 +42,7 @@ This module requires these other modules and libraries:
   * LWP
   * JSON
   * Geo::Google::PolylineEncoder
+  * IO::Socket::PortState ( if running tests against live service )
 
 OSRM API VERSIONS
 -----------------

@@ -18,7 +18,7 @@ BEGIN {
   use_ok('Geo::Router::OSRM::Route');
 }
     
-is( $Geo::Router::OSRM::VERSION, "v0.20");
+is( $Geo::Router::OSRM::VERSION, "v0.20", 'Testing Version 0.20');
 
 #my $osrm = OSRM->new( { source=>'localhost', instructions => 'true' } );
 
@@ -26,39 +26,62 @@ is( $Geo::Router::OSRM::VERSION, "v0.20");
 SKIP: {
   skip('IO::Socket::PortState not installed unable to check for local OSRM service running so skipping local tests', 6 )
     unless check_install( module => 'IO::Socket::PortState' ); 
-  skip('$ENV{OSRM_URL_BASE Not set ', 6 )
-    unless check_install( module => 'IO::Socket::PortState' );
+  skip('$ENV{OSRM_URL_BASE} Not set ', 6 ) unless defined $ENV{OSRM_URL_BASE};
+  my $domain; my $port;
+  if ( $ENV{OSRM_URL_BASE} =~ /http\:\/\/([^\:]+)\:(\d+)/mg )
+  {
+    $domain=$1; $port = $2;
+  }
+  skip('$ENV{OSRM_URL_BASE} Not of format http://<domain>:<port> ', 6 ) unless ($port =~ /\d+/ and $domain =~ /\w+/);
 
+  ## CONFIRM THAT SERVICE IS AVAILABLE
   use IO::Socket::PortState qw(check_ports);
+  my $local_port_check = check_ports($domain,$port,{ tcp=>{$port=>{}} });
+  skip("service at $ENV{OSRM_URL_BASE} not available",6) unless $local_port_check->{tcp}{$port}{open};
 
-  my $local_port_check = check_ports('127.0.0.1',5000,{ tcp=>{5000=>{}} });
-#  print "foo = $foo\n";
-#  print Dumper $foo;
-#  ny $local_open = 
+  #my $osrm = Geo::Router::OSRM->new( { url_base=>"http://$domain:$port", instructions => 'true' } );
 
-  #skip('local service not running',6) unless $local_port_check->{tcp}{5000}{open};
-
-   
-  my $osrm = Geo::Router::OSRM->new( { url_base=>'http://192.168.0.28:5000', instructions => 'true' } );
+  ## [1] - create a Geo::Router::OSRM object
+  my $osrm = Geo::Router::OSRM->new( { url_base=>"http://$domain:$port", instructions => 'true' } );
+  ok( $osrm->isa('Geo::Router::OSRM'), 'Can create new Geo::Router::OSRM object') ;
 
 
-    ok( defined $osrm, 'new() returned something');
-    ok( $osrm->isa('Geo::Router::OSRM'), 'and is the right class');
-
+  ## [2] Nearest 
   my $loc = $osrm->nearest( 153.386215,-27.919012 ); ## NB long,lat order for coords
-  print "nearest() result: " . Dumper $loc;
+  ok( $loc->{code} eq 'Ok', 'Nearest long/lat - Geo::Router::OSRM->nearest( 153.386215,-27.919012 ) returned status' );
+  #print "nearest() result: " . Dumper $loc;
 
-  my $route_json_struct = $osrm->get( service=> 'route', profile=> 'car', coordinates=> [ [153.386215,-27.919012],[153.360809,-27.936121], [ 153.434582,-28.033663] ] );
+  ## [3] Point to point route
+  my $route = $osrm->get( service=> 'route', profile=> 'car', coordinates=> [ [153.386215,-27.919012],[153.360809,-27.936121], [ 153.434582,-28.033663] ] );
+  #my $route = $osrm->process_via_json_v5( $route_json_struct );
   #print Dumper $route_json;
-print "\n ------ PETER SAYS HOWDY -----\n";
-print Dumper $route_json_struct;
-  my $route = $osrm->process_via_json_v5( $route_json_struct );
-
-
-  ok( $route->isa('Geo::Router::OSRM::Route'), 'Got a route object');
+  #print "\n ------ PETER SAYS HOWDY -----\n";
+  #print Dumper $route_json_struct;
+  ok( $route->isa('Geo::Router::OSRM::Route'), '3 location trip - Got a route object - $osrm->get( service=> \'route\', profile=> \'car\', coordinates=> [ [153.386215,-27.919012],[153.360809,-27.936121], [ 153.434582,-28.033663] ] )');
   
+
+  ## [4] Route to self
+  $route = $osrm->get( service=> 'route', profile=> 'car', coordinates=> [ [153.386215,-27.919012], [153.386215,-27.919012] ] );
+  #my $route = $osrm->process_via_json_v5( $route_json_struct );
+  #print Dumper $route_json;
+  #print "\n ------ PETER SAYS HOWDY -----\n";
+  #print Dumper $route_json_struct;
+  ok( $route->isa('Geo::Router::OSRM::Route'), 'Route to self - Got a route object - $osrm->get( service=> \'route\', profile=> \'car\', coordinates=> [ [153.386215,-27.919012],[153.386215,-27.919012] )');
+
+
+  ## [5] Route with single location
+  $route = $osrm->get( service=> 'route', profile=> 'car', coordinates=> [ [153.386215,-27.919012] ] );
+  #my $route = $osrm->process_via_json_v5( $route_json_struct );
+  #print Dumper $route_json;
+  #print "\n ------ PETER SAYS HOWDY -----\n";
+  #print Dumper $route_json_struct;
+  ok( $route->isa('Geo::Router::OSRM::Route'), 'Route single location - Got a route object - $osrm->get( service=> \'route\', profile=> \'car\', coordinates=> [ [153.386215,-27.919012],[153.386215,-27.919012] )');
+
+
+  $route = $osrm->get( service=> 'route', profile=> 'car', coordinates=> [ [ 153.3977316, -27.948009 ], ['153.3256','-27.9466'] ] );
+  ok( $route->isa('Geo::Router::OSRM::Route'), 'Route test case from GCD ');
   #print Dumper $route;
-  print Dumper $route->geometry_decoded();
+  #print Dumper $route->geometry_decoded();
  # my $route = $osrm->viaroute( [  [-27.919012,153.386215],[-27.936121,153.360809], [-28.033663, 153.434582]   ] );
 
  #   ok( defined $route, 'viaroute returned something');

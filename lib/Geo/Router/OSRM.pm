@@ -9,9 +9,8 @@ use Data::Dumper;
 use Geo::Router::OSRM::Route;
 use Geo::Google::PolylineEncoder;  ## NB - consider removing this functionality
 
-use version; our $VERSION = version->declare("0.10");
-#our $VERSION = '0.02';
-#$VERSION = eval $VERSION;
+use version; our $VERSION = version->declare("0.20");
+
 
 
 =head1 NAME
@@ -27,7 +26,7 @@ ugly and should not be depended on without significant testing for your use case
 
 =head1 VERSION
 
-Version 0.04
+Version 0.02
 
 =cut
 
@@ -96,9 +95,9 @@ Dec,2016 - Refactored new to accept hash instead of hashref
 
 =head2 new()
 
-    my $osrm = Geo::Router::OSRM->new(); ## defaults to osrm server
+    my $osrm = Geo::Router::OSRM->new( ); ## defaults to osrm server
     or
-    my $osrm = Geo::Router::OSRM->new(  url_base => 'http://otherdomain.com:5000', source=> 'custom'   );
+    my $osrm = Geo::Router::OSRM->new(  url_base => 'http://otherdomain.com:5000', source=> 'custom', api_version=>4  );
     or
     my $osrm = Geo::Router::OSRM->new(  source=>'localhost'  );  ## Create an OSRM Query Agent
 
@@ -113,22 +112,22 @@ Dec,2016 - Refactored new to accept hash instead of hashref
 sub new
 {
 
-    my $class = shift;
-    my (  %ahr ) = @_;
+    my ($class, $ahr)   = @_;
+    
     #return undef unless defined $ahr->{user_id};
 
     my $self = bless
-
     {
         ua => LWP::UserAgent->new(),
-        source   => $ahr{source}   || '',
-        url_base => $ahr{url_base} || '',
-        api_version => $ahr{api_version} || 4,
+        source   => $ahr->{source}   || '',
+        url_base => $ahr->{url_base} || '',
+        api_version => $ahr->{api_version} || 5, ## still some cruff from 4 but may not be handled well- default 5
+        profile => $ahr->{profile} || 'car', ## new in v 5
         error    => '',
         DEBUG    => '',
         json_result => '',
         via_params => {
-            instructions => $ahr{instructions} || 'true', # true || false
+            instructions => $ahr->{instructions} || 'true', # true || false
             alt          => 'false', ## if set to true then viaroute queries include alternative routes
         },
         routes => [],
@@ -138,19 +137,15 @@ sub new
        #     &jsonp=_function_
        #     &instructions={true, false}
        #     &alt={true, false}
-
-
     }, $class;
 
 
-    if ( (defined $ahr{url_base} and $ahr{url_base} =~ /^http/m) and  ( $self->{source} eq 'custom' || not defined $SOURCES{ $self->{source} } ) )
+    if ( (defined $ahr->{url_base} and $ahr->{url_base} =~ /^http/m) and  ( $self->{source} eq 'custom' || not defined $SOURCES{ $self->{source} } ) )
     {
       $self->{source} = 'custom';
-      $self->{url_base} = $ahr{url_base};
+      $self->{url_base} = $ahr->{url_base};
 
     }
-
-
     return $self; ## get here if all values passed in as params ... could possibly include a check to sensure run_id is correct ... possibly option to create record
 }
 
@@ -167,16 +162,20 @@ sub new
 sub locate
 {
     my ( $self, $lat, $lng ) = @_;
-    if ( $self->{api_version} eq '4')
+    if ( $self->{api_version} eq '4' )
     {
       $self->{json_result} = $self->_request( qq{$self->{url_base}/locate?loc=$lat,$lng} );
-      } 
-      else 
-      {
-        die("API V5 Not yet implemented");
-      }
+    }
+    elsif ( $self->{api_version} eq '5' )
+    {
+      $self->{json_result} = $self->_request( qq{$self->{url_base}/locate?loc=$lat,$lng} );
+      #die("API V5 Not yet implemented");
+    } 
+    else 
+    {
+      return $self->_error("unexpected version $self->{api_version}");
+    }
     return $self->{json_result};
-    die("Not yet implemetned");
 }
 
 
@@ -203,10 +202,18 @@ nearest result example as follows:
 
 sub nearest
 {
-    my ( $self, $lat, $lng ) = @_;
+    my ( $self,  $lng, $lat ) = @_;
     # http://server:5000/nearest?loc=lat,lon
+    if ( $self->{api_version} eq '4')
+    {
+      $self->{json_result} = $self->_request( qq{$self->{url_base}/nearest?loc=$lat,$lng} );
+    } 
+    elsif ( $self->{api_version} eq '5' ) 
+    {
+      print qq{$self->{url_base}/nearest/v1/driving/$lng,$lat\n};
+      $self->{json_result} = $self->_request( qq{$self->{url_base}/nearest/v1/driving/$lng,$lat} );
+    }
 
-    $self->{json_result} = $self->_request( qq{$self->{url_base}/nearest?loc=$lat,$lng} );
     return $self->{json_result};
     die("Not yet implemetned");
 }
@@ -277,6 +284,8 @@ sub process_via_json
     return $self->{routes}[0];
 
 }
+
+
 
 
 
@@ -372,7 +381,7 @@ sub _request {
    #     unless $res->content_type =~ /^text/;
 
     my $content = $res->decoded_content;
-    #print "$content";
+    print "$content";
     return unless $content;
 
     my $data = eval { from_json($content) };
@@ -413,14 +422,86 @@ coordinates: one of - string of google encoded polyline coordinates  with precis
   e.g.
   my $version = $osrm->get( service => 'route', version => 1, profile => 'car', coordinates=> [ [$lng1,$lat1], [128,-27, 129,-28] ] );
   my $
+  
+  my $route = $osrm->get( service=> 'route', profile=> 'car', coordinates=> [ [ $self->{lng}, $self->{lat} ], @stripped_locs ] )
 
 =cut 
 
 sub get
 {
   my ( $self, %params ) = @_;
-  return $self->_err('service param must be one of: ', join(@services,',') ) unless $params{'service'} =~ m/route|nearest|table|match|trip|tile/img;
+  return $self->_err('service param must be one of: route nearest table match trip tile')  unless $params{'service'} =~ m/route|nearest|table|match|trip|tile/img;
+  return $self->_get_route(%params) if ( $params{'service'} =~ /route/im );
 }
+
+
+=pod _get_route()
+
+GET /route/v1/{profile}/{coordinates}?alternatives={true|false}&steps={true|false}&geometries={polyline|polyline6|geojson}&overview={full|simplified|false}&annotations={true|false}
+
+example URL:  
+  # Query on Berlin with three coordinates and no overview geometry returned:
+  curl 'http://router.project-osrm.org/route/v1/driving/13.388860,52.517037;13.397634,52.529407;13.428555,52.523219?overview=false'
+
+=cut 
+
+sub _get_route
+{
+  my ( $self, %params ) = @_;
+  #print Dumper \%params;
+  return $self->_error('unable to get route without list of waypoints') unless ref( $params{coordinates} ) eq 'ARRAY';
+  $params{annotations} = 'false' unless $params{annotations};
+  $params{steps}       = 'true' unless $params{step};
+
+  my $wp_strings = [];
+  foreach my $point ( @{$params{coordinates}} )
+  {
+    push @$wp_strings, "$point->[0],$point->[1]";
+   # print "$point->[0],$point->[1]\n";
+  }
+  my $uri =  qq{$self->{url_base}/route/v1/driving/} . join( ';', @$wp_strings) . "?annotations=$params{annotations}&steps=$params{steps}";
+  print "$uri\n\n";
+  #print  qq{$self->{url_base}/route/v1/driving/} . join( ';',@$wp_strings) . "\n";
+  return $self->{json_result} = $self->_request( $uri );
+  return $self->{json_result};
+}
+
+
+
+sub process_via_json_v5
+{
+    my ( $self, $json ) = @_;
+
+    $json = $self->{json_result} unless $json;
+
+die('wtffff' . $json->{code} ) unless ( defined $json and $json->{code} eq 'Ok');
+
+    return $self->_error('Unable to create route object from invalid JSON') unless ( defined $json and $json->{code} eq 'Ok');
+
+    ## parse first route object in list of routes as described in https://github.com/Project-OSRM/osrm-backend/blob/master/docs/http.md#result-objects
+
+    ## 
+
+    $self->{routes}[0] = Geo::Router::OSRM::Route->new({
+       # 'start_desc' => $self->{json_result}
+       # 'finish_desc' =>  $self->{json_result}
+
+        'route_summary'            => $json->{routes}[0]{route_summary},
+        'route_geometry'           => $json->{routes}[0]{geometry},
+        #'route_instructions'       => $self->{json_result}{route_instructions},
+        'total_distance'           => $json->{routes}[0]{distance},
+        'total_duration'           => $json->{routes}[0]{duration},
+        'via_points'               => $json->{waypoints},
+    }) || die('critical error - failed to create route');
+
+    
+
+    #foreach
+    #print Dumper $self->{json_result};
+    return $self->{routes}[0];
+
+}
+
 
 1;
 

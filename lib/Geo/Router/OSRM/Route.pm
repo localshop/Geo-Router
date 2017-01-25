@@ -18,7 +18,7 @@ Access Open Street Map Routing REST Web Service API
 
 =head1 VERSION
 
-Version 0.0.4
+Version 0.20
 
 =cut
 
@@ -96,7 +96,6 @@ sub new
 
 
     my $self = bless
-
     {
       #  'start_desc'     => $ahr->{start_desc} || '',
       #  'finish_desc'    => $ahr->{finish_desc} || '',
@@ -104,15 +103,13 @@ sub new
         'route_geometry'     => $ahr->{route_geometry} || '',
         'geometry_encoded_google' => $ahr->{geometry_encoded_google} || '',
         'geometry_decoded'   => [],
-        'route_instructions' => $ahr->{route_instructions} || [],
+        'route_instructions' => $ahr->{route_instructions} || [], ## V 4 only
         'total_distance'     => $ahr->{total_distance} || 0,
         'total_duration'     => $ahr->{total_duration} || 0,
         'via_points'         => $ahr->{via_points}     || [],
         'formatted_instructions' => $ahr->{formatted_instructions} || [],
-
-
-
     }, $class;
+    return $self;
     return $class->error("Cannot create $class without route_geometry hashkey parameter") unless $ahr->{route_geometry};
 
     return $self; ## get here if all values passed in as params ... could possibly include a check to sensure run_id is correct ... possibly option to create record
@@ -165,6 +162,7 @@ Returns the total duration of the route in seconds.
   print $route->total_duration();
 
 =cut
+
 sub total_duration
 {
     my ( $self ) = @_;
@@ -241,7 +239,7 @@ sub geometry_decoded
     foreach my $p ( @{$self->{geometry_decoded_raw}} )
     {
         #print qq{$p->{lat}, $p->{lon}\n};
-      push @{ $self->{geometry_decoded}} , {lat => $p->{lat}/10, lon => $p->{lon}/10 };
+      push @{ $self->{geometry_decoded}} , {lat => $p->{lat}, lon => $p->{lon} };
     }
     #print Dumper $self->{geometry_decoded};
 

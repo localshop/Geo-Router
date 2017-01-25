@@ -1,5 +1,5 @@
 
-Geo-Router-OSRM version 0.0.5
+Geo-Router-OSRM version 0.20
 =============================
 
 
@@ -71,7 +71,7 @@ http://{server}/{service}/{version}/{profile}/{coordinates}[.{format}]?option=va
 COPYRIGHT AND LICENCE
 
 
-Copyright (C) 2014-2016 by Peter Scott
+Copyright (C) 2014-2017 by Peter Scott
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.18.2 or,

@@ -13,9 +13,12 @@ use Data::Dumper;
 use Test::More;# 'no_plan'; # tests => 8;
 use Module::Load::Conditional qw[can_load check_install requires];
     
-BEGIN { use_ok('Geo::Router::OSRM')}
+BEGIN { 
+  use_ok('Geo::Router::OSRM');
+  use_ok('Geo::Router::OSRM::Route');
+}
     
-# is( $OSRM::VERSION, "v0.0.2");
+is( $Geo::Router::OSRM::VERSION, "v0.20");
 
 #my $osrm = OSRM->new( { source=>'localhost', instructions => 'true' } );
 
@@ -23,6 +26,8 @@ BEGIN { use_ok('Geo::Router::OSRM')}
 SKIP: {
   skip('IO::Socket::PortState not installed unable to check for local OSRM service running so skipping local tests', 6 )
     unless check_install( module => 'IO::Socket::PortState' ); 
+  skip('$ENV{OSRM_URL_BASE Not set ', 6 )
+    unless check_install( module => 'IO::Socket::PortState' );
 
   use IO::Socket::PortState qw(check_ports);
 
@@ -30,29 +35,43 @@ SKIP: {
 #  print "foo = $foo\n";
 #  print Dumper $foo;
 #  ny $local_open = 
-  skip('local service not running',6) unless $local_port_check->{tcp}{5000}{open};
-  
+
+  #skip('local service not running',6) unless $local_port_check->{tcp}{5000}{open};
 
    
-  my $osrm = Geo::Router::OSRM->new( { source=>'localhost', instructions => 'true' } );
+  my $osrm = Geo::Router::OSRM->new( { url_base=>'http://192.168.0.28:5000', instructions => 'true' } );
 
 
     ok( defined $osrm, 'new() returned something');
     ok( $osrm->isa('Geo::Router::OSRM'), 'and is the right class');
 
-  my $route = $osrm->viaroute( [  [-27.919012,153.386215],[-27.936121,153.360809], [-28.033663, 153.434582]   ] );
+  my $loc = $osrm->nearest( 153.386215,-27.919012 ); ## NB long,lat order for coords
+  print "nearest() result: " . Dumper $loc;
 
-    ok( defined $route, 'viaroute returned something');
-    ok( $route->isa('Geo::Router::OSRM::Route'), 'and is the right class');
-    ok( $route->formatted_instructions(), 'formatted_instructions()' );
-    print Dumper $route->formatted_instructions();
-    ok( $route->total_distance(),         'total_distance()' );
+  my $route_json_struct = $osrm->get( service=> 'route', profile=> 'car', coordinates=> [ [153.386215,-27.919012],[153.360809,-27.936121], [ 153.434582,-28.033663] ] );
+  #print Dumper $route_json;
+print "\n ------ PETER SAYS HOWDY -----\n";
+print Dumper $route_json_struct;
+  my $route = $osrm->process_via_json_v5( $route_json_struct );
+
+
+  ok( $route->isa('Geo::Router::OSRM::Route'), 'Got a route object');
+  
+  #print Dumper $route;
+  print Dumper $route->geometry_decoded();
+ # my $route = $osrm->viaroute( [  [-27.919012,153.386215],[-27.936121,153.360809], [-28.033663, 153.434582]   ] );
+
+ #   ok( defined $route, 'viaroute returned something');
+ #   ok( $route->isa('Geo::Router::OSRM::Route'), 'and is the right class');
+ #   ok( $route->formatted_instructions(), 'formatted_instructions()' );
+ #   print Dumper $route->formatted_instructions();
+ #   ok( $route->total_distance(),         'total_distance()' );
     
-  my $loc = $osrm->locate( -27.919012,153.386215 );
-  print "locate() result: " . Dumper $loc;
 
-  my $nearest = $osrm->nearest( -27.919012,153.386215 );
-  print "nearest() result: " . Dumper $nearest;
+
+  #my $nearest = $osrm->nearest( -27.919012,153.386215 );
+  #153.386215,-27.919012
+  #print "nearest() result: " . Dumper $nearest;
 }
 
 

@@ -139,7 +139,15 @@ sub summary_as_text
         Total Duration: $self->{total_duration} seconds\n};
 }
 
+=head2 as_text() - alias for summary_as_text()
 
+=cut
+
+sub as_text
+{
+  my ( $self ) = @_;
+  return $self->summary_as_text();
+}
 =head2 total_distance()
 
 Returns the total distance of the route in meters.

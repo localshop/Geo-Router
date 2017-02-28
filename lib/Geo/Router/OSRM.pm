@@ -10,7 +10,7 @@ use Geo::Router::OSRM::Route;
 use Geo::Google::PolylineEncoder;  ## NB - consider removing this functionality
 use Scalar::Util qw(looks_like_number);
 
-use version; our $VERSION = version->declare("0.20");
+use version; our $VERSION = version->declare("0.21");
 
 
 
@@ -27,7 +27,7 @@ ugly and should not be depended on without significant testing for your use case
 
 =head1 VERSION
 
-Version 0.02
+Version 0.21
 
 =cut
 
@@ -574,7 +574,7 @@ L<http://open.mapquestapi.com/nominatim/>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2014-2016 Peter Scott <peter at pscott.com.au>, all rights reserved.
+Copyright (C) 2014-2017 Peter Scott <peter at pscott.com.au>, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

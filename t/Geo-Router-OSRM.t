@@ -18,7 +18,7 @@ BEGIN {
   use_ok('Geo::Router::OSRM::Route');
 }
     
-is( $Geo::Router::OSRM::VERSION, "v0.20", 'Testing Version 0.20');
+is( $Geo::Router::OSRM::VERSION, "v0.21", 'Testing Version 0.21');
 
 #my $osrm = OSRM->new( { source=>'localhost', instructions => 'true' } );
 

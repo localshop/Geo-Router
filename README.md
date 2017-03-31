@@ -78,6 +78,9 @@ http://{server}/{service}/{version}/{profile}/{coordinates}[.{format}]?option=va
 ### Perl Libray Examples of accessing these services
 
 
+FUTURE PLANS
+------------
+- ideally would like to bind to underlaying C++ libs using https://metacpan.org/pod/ExtUtils::XSpp
 
 
 

@@ -5,7 +5,7 @@ Geo-Router-OSRM version 0.21
 
 *WARNING - THIS MODULE IS BEING REWRITTEN TO WORK FOR BOTH THE OLD V4 AND THE NEWER V5 - not really usable at the moment*
 
-Am aiming to release a working version before March 2017
+Am aiming to release a working version before June 2017
 
 This CPAN style Perl Module provides access to Open Street Map Routing REST Web Service API
 
